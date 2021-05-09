@@ -1,4 +1,5 @@
 #Directories
 Debug/
 ReverseTessellation/Debug
+*.user
 .vs/
