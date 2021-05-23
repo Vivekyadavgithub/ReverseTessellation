@@ -16,20 +16,20 @@ glm::vec3 cameraUp = glm::vec3(0.0f, 1.0f, 0.0f);
 
 int main()
 {
-	GLFWwindow* window;
-	if (!glfwInit()) return -1;
+    GLFWwindow* window;
+    if (!glfwInit()) return -1;
 
-	window = glfwCreateWindow(1980, 1080, "Engine", NULL, NULL);
+    window = glfwCreateWindow(1980, 1080, "Engine", NULL, NULL);
 
-	if (!window) {
-		glfwTerminate();
-		return -1;
-	}
-	glfwMakeContextCurrent(window);
+    if (!window) {
+        glfwTerminate();
+        return -1;
+    }
+    glfwMakeContextCurrent(window);
 
-	if (glewInit() != GLEW_OK) {
-		std::cout << "GLEW ERROR\n";
-	}
+    if (glewInit() != GLEW_OK) {
+        std::cout << "GLEW ERROR\n";
+    }
     /*int heightmapCols, heightRows, nrChannels;
     unsigned char* data = stbi_load("../snowterrain_heightmap.png", &heightmapCols, &heightRows, &nrChannels, 0);
     float* heightmap = new float[heightmapCols * heightRows];
@@ -38,7 +38,6 @@ int main()
             for (int j = 0; j < heightmapCols; j++) {
                 int index = j + i * heightmapCols;
                 heightmap[index] = (data[index * nrChannels] / 255.0f);
-
             }
         }
     }*/
@@ -53,27 +52,27 @@ int main()
            // std::cout << temp1 << " " << temp2 << " " << temp3 << " " << temp4 << "\n";
             terrain.push_back(temp1);
             terrain.push_back(temp2);
-            terrain.push_back(0.2f);
-            
-            terrain.push_back(temp3);
-            terrain.push_back(temp2);
-            terrain.push_back(0.3f);
-
-            terrain.push_back(temp1);
-            terrain.push_back(temp4);
-            terrain.push_back(0.4f);
+            //terrain.push_back(0.2f);
 
             terrain.push_back(temp3);
             terrain.push_back(temp2);
-            terrain.push_back(0.2f);
+            //terrain.push_back(0.3f);
 
             terrain.push_back(temp1);
             terrain.push_back(temp4);
-            terrain.push_back(0.8f);
+            //terrain.push_back(0.4f);
+
+            terrain.push_back(temp3);
+            terrain.push_back(temp2);
+//            terrain.push_back(0.2f);
+
+            terrain.push_back(temp1);
+            terrain.push_back(temp4);
+  //          terrain.push_back(0.8f);
 
             terrain.push_back(temp3);
             terrain.push_back(temp4);
-            terrain.push_back(1.0f);
+    //        terrain.push_back(1.0f);
 
         }
     }
@@ -88,103 +87,146 @@ int main()
     unsigned int vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-    
+
     unsigned int vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, 3  * 40 * 40 * 6 * sizeof(float), &terrain[0] , GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 2   * 40 * 40 * 6 * sizeof(float), &terrain[0] , GL_STATIC_DRAW);
 
-    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)0);
+    glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
-
-    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(2 * sizeof(float))); 
-    glEnableVertexAttribArray(1);
+    /*
+    glVertexAttribPointer(1, 1, GL_FLOAT, GL_FALSE, 3 * sizeof(float), (void*)(2 * sizeof(float)));
+    glEnableVertexAttribArray(1);*/
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(vao);
 
+    GLint MaxPatchVertices = 0;
+    glGetIntegerv(GL_MAX_PATCH_VERTICES, &MaxPatchVertices);
+    printf("Max supported patch vertices %d\n", MaxPatchVertices);
+    glPatchParameteri(GL_PATCH_VERTICES, 3);
     const char* vertexShaderSource =
         R"GLSL(
         #version 410 core
-        layout (location = 0) in vec2 aPos;
-        layout (location = 1) in float aTfac;
-        uniform mat4 model;
-        uniform mat4 view;
-        uniform mat4 projection;
-        flat out float tFactor;
+
+        layout (location = 0) in vec3 Position_VS_in;
+        //layout (location = 1) in vec2 TexCoord_VS_in;
+        //layout (location = 2) in vec3 Normal_VS_in;
+
+        //uniform mat4 gWorld;
+
+        out vec3 WorldPos_CS_in;
+        //out vec2 TexCoord_CS_in;
+        //out vec3 Normal_CS_in;
+
         void main()
         {
+            WorldPos_CS_in = ( vec4(Position_VS_in, 1.0)).xyz;
 
-            tFactor = aTfac;
-            gl_Position =   projection * view * model  * vec4(aPos, 0.5, 1.0);
+            //Normal_CS_in = (gWorld * vec4(Normal_VS_in, 0.0)).xyz;
         }
         )GLSL";
-    
+
     const char* tesscontrolShaderSource =
         R"glsl(
         #version 410 core
-        layout(vertices = 3) out;
-                
-        const int AB = 2;
-        const int BC = 3;
-        const int CD = 0;
-        const int DA = 1;
-    	uniform double xpos;
-        uniform double ypos;
-    	flat in float TFactor[];
-    	float TSlope = 1.8;
-    	float TShift = 0.3;
-    	
-        float fac = 600;
-        float LodFactor(float dist, int i){
-            float tessellationLevel = max(0.0, 600/pow(dist, TSlope) + TShift);
-            return tessellationLevel; 
-        }
-        
+
+        // define the number of CPs in the output patch
+        layout (vertices = 3) out;
+
+        vec3 gEyeWorldPos = vec3(1.0f, 0.4f, 0.7f);
+
+        // attributes of the input CPs
+        in vec3 WorldPos_CS_in[];
+        //in vec2 TexCoord_CS_in[];
+        //in vec3 Normal_CS_in[];
+
+        // attributes of the output CPs
+        out vec3 WorldPos_ES_in[];
+        //out vec2 TexCoord_ES_in[];
+        //out vec3 Normal_ES_in[];
+        float GetTessLevel(float Distance0, float Distance1);
         void main()
         {
-            int i = 0;
-            if (gl_InvocationID == 0) {
-                vec3 abMid = vec3(gl_in[0].gl_Position  + gl_in[3].gl_Position)  / 2.0;
-                vec3 bcMid = vec3(gl_in[3].gl_Position  + gl_in[15].gl_Position) / 2.0;
-                vec3 cdMid = vec3(gl_in[15].gl_Position + gl_in[12].gl_Position) / 2.0;
-                vec3 daMid = vec3(gl_in[12].gl_Position + gl_in[0].gl_Position)  / 2.0;
-                
-                float distanceAB = distance(abMid, vec3(xpos, ypos, 0.5));
-                float distanceBC = distance(bcMid, vec3(xpos, ypos, 0.5));              
-                float distanceCD = distance(cdMid, vec3(xpos, ypos, 0.5));              
-                float distanceDA = distance(daMid, vec3(xpos, ypos, 0.5));              
-                              
-                gl_TessLevelOuter[AB] = mix(i, gl_MaxTessGenLevel,  LodFactor(distanceAB, i));
-                gl_TessLevelOuter[BC] =  mix(i, gl_MaxTessGenLevel, LodFactor(distanceBC, i));
-                gl_TessLevelOuter[CD] =  mix(i, gl_MaxTessGenLevel, LodFactor(distanceCD, i));
-                gl_TessLevelOuter[DA] =  mix(i, gl_MaxTessGenLevel, LodFactor(distanceDA, i));
-                i++;
-                //gl_TessLevelInner[0] = (gl_TessLevelOuter[BC] + gl_TessLevelOuter[DA])/4;
-                //gl_TessLevelInner[1] = (gl_TessLevelOuter[AB] + gl_TessLevelOuter[CD])/4;
-                                
+            // Set the control points of the output patch
+            //TexCoord_ES_in[gl_InvocationID] = TexCoord_CS_in[gl_InvocationID];
+            //Normal_ES_in[gl_InvocationID] = Normal_CS_in[gl_InvocationID];
+            WorldPos_ES_in[gl_InvocationID] = WorldPos_CS_in[gl_InvocationID];
+        // Calculate the distance from the camera to the three control points
+           float EyeToVertexDistance0 = distance(gEyeWorldPos, WorldPos_ES_in[0]);
+           float EyeToVertexDistance1 = distance(gEyeWorldPos, WorldPos_ES_in[1]);
+           float EyeToVertexDistance2 = distance(gEyeWorldPos, WorldPos_ES_in[2]);
+
+           // Calculate the tessellation levels
+           gl_TessLevelOuter[0] = GetTessLevel(EyeToVertexDistance1, EyeToVertexDistance2);
+           gl_TessLevelOuter[1] = GetTessLevel(EyeToVertexDistance2, EyeToVertexDistance0);
+           gl_TessLevelOuter[2] = GetTessLevel(EyeToVertexDistance0, EyeToVertexDistance1);
+           gl_TessLevelInner[0] = gl_TessLevelOuter[2];
+       }
+
+        float GetTessLevel(float Distance0, float Distance1)
+        {
+            float AvgDistance = (Distance0 + Distance1) / 2.0;
+
+            if (AvgDistance <= 2.0) {
+                return 10.0;
             }
-            gl_out[gl_InvocationID].gl_Position = gl_in[gl_InvocationID].gl_Position;
+            else if (AvgDistance <= 5.0) {
+                return 7.0;
+            }
+            else {
+                return 3.0;
+            }
         }
         )glsl";
 
     const char* tessEvalShaderSource =
         R"glsl(
             #version 410 core
-            layout(triangles, equal_spacing, cw) in;
-            
+            layout(triangles, equal_spacing, ccw) in;
+            mat4 gVP = mat4(1.0f);
+            //uniform sampler2D gDisplacementMap;
+            float gDispFactor = 1.0f;
+            uniform mat4 model;
+            uniform mat4 view;
+            uniform mat4 projection;
+            in vec3 WorldPos_ES_in[];
+            //in vec2 TexCoord_ES_in[];
+            //in vec3 Normal_ES_in[];
+
+            out vec3 WorldPos_FS_in;
+            //out vec2 TexCoord_FS_in;
+            //out vec3 Normal_FS_in;
+            vec2 interpolate2D(vec2 v0, vec2 v1, vec2 v2)
+            {
+                return vec2(gl_TessCoord.x) * v0 + vec2(gl_TessCoord.y) * v1 + vec2(gl_TessCoord.z) * v2;
+            }
+
+            vec3 interpolate3D(vec3 v0, vec3 v1, vec3 v2)
+            {
+                return vec3(gl_TessCoord.x) * v0 + vec3(gl_TessCoord.y) * v1 + vec3(gl_TessCoord.z) * v2;
+            }
             void main()
             {
-                gl_Position = (gl_TessCoord.x * gl_in[0].gl_Position) +
-                              (gl_TessCoord.y * gl_in[1].gl_Position) +
-                              (gl_TessCoord.z * gl_in[2].gl_Position) ;
+                // Interpolate the attributes of the output vertex using the barycentric coordinates
+                //TexCoord_FS_in = interpolate2D(TexCoord_ES_in[0], TexCoord_ES_in[1], TexCoord_ES_in[2]);
+                //Normal_FS_in = interpolate3D(Normal_ES_in[0], Normal_ES_in[1], Normal_ES_in[2]);
+                //Normal_FS_in = normalize(Normal_FS_in);
+                WorldPos_FS_in = interpolate3D(WorldPos_ES_in[0], WorldPos_ES_in[1], WorldPos_ES_in[2]);
+                // Displace the vertex along the normal
+                //float Displacement = texture(gDisplacementMap, TexCoord_FS_in.xy).x;
+               // WorldPos_FS_in += Normal_FS_in * Displacement * gDispFactor;
+                gl_Position = projection * view * model  * vec4(WorldPos_FS_in, 1.0);
             }
+
+
         )glsl";
-    
+
     const char* fragmentShaderSource =
         R"glsl(
             #version 410 core
-            out vec4 FragColor;     
+            out vec4 FragColor;
             void main()
             {
                 FragColor = vec4(1.0, 0.5, 0.5, 1.0);
@@ -205,12 +247,12 @@ int main()
         glGetShaderInfoLog(vertexShader, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::VERTEX::COMPILATION_FAILED\n" << infoLog << std::endl;
     }
-    
+
     unsigned int tessControlShader;
     tessControlShader = glCreateShader(GL_TESS_CONTROL_SHADER);
     glShaderSource(tessControlShader, 1, &tesscontrolShaderSource, NULL);
     glCompileShader(tessControlShader);
-    
+
     glGetShaderiv(tessControlShader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
@@ -221,20 +263,20 @@ int main()
     tessEvalShader = glCreateShader(GL_TESS_EVALUATION_SHADER);
     glShaderSource(tessEvalShader, 1, &tessEvalShaderSource, NULL);
     glCompileShader(tessEvalShader);
-    
-   
+
+
     glGetShaderiv(tessEvalShader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
         glGetShaderInfoLog(tessEvalShader, 512, NULL, infoLog);
         std::cout << "ERROR::SHADER::TESSEVAL::COMPILATION_FAILED\n" << infoLog << std::endl;
     }
-    
+
     unsigned int fragmentShader;
     fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
     glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
     glCompileShader(fragmentShader);
-    
+
     glGetShaderiv(fragmentShader, GL_COMPILE_STATUS, &success);
     if (!success)
     {
@@ -266,11 +308,11 @@ int main()
         projection = glm::perspective(glm::radians(45.0f), (float)700 / (float)700, 0.1f, 100.0f);
         unsigned int projection_loc = glGetUniformLocation(shaderProgram, "projection");
         glUniformMatrix4fv(projection_loc, 1, GL_FALSE, glm::value_ptr(projection));
-        
+
         //TessLevelInner
         //unsigned int innerTess = glGetUniformLocation(shaderProgram, "TessLevelInner");
         //glUniform1f(innerTess, 4.0f);
-        
+
         //unsigned int outerTess = glGetUniformLocation(shaderProgram, "TessLevelOuter");
         //glUniform1f(outerTess, 4.0f);
         glfwGetCursorPos(window, &xpos, &ypos);
@@ -287,11 +329,11 @@ int main()
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         unsigned int view_loc = glGetUniformLocation(shaderProgram, "view");
         glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm::value_ptr(view));
-        
+
         glm::mat4 model = glm::mat4(1.0f);
         unsigned int postions_loc = glGetUniformLocation(shaderProgram, "model");
         glUniformMatrix4fv(postions_loc, 1, GL_FALSE, glm::value_ptr(model));
-        
+
         glDrawArrays(GL_PATCHES, 0, 2 * 4 * 100 * 100);
         glfwSwapBuffers(window);
         glfwPollEvents();
@@ -314,4 +356,3 @@ void processInput(GLFWwindow* window)
     if (glfwGetKey(window, GLFW_KEY_D) == GLFW_PRESS)
         cameraPos += glm::normalize(glm::cross(cameraFront, cameraUp)) * cameraSpeed;
 }
-
