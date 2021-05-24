@@ -80,9 +80,12 @@ int main()
         std::cout << terrain[i] << " " << terrain[i + 1] << " " << terrain[i + 2] << " "
             << terrain[i + 3] << " " << terrain[i + 4] << " " << terrain[i + 5] << "\n";
     }*/
-    float triangle[] = { 0.5f, 0.5f, -0.5f, 0.2f, 0.6f, 0.1f,
-                         0.0f, 0.0f, -0.5f, 0.8f, 0.8f, 0.2f,
-                         0.0f, 0.5f, -0.5f, 0.1f, 0.0f, 0.4f
+    float triangle[] = { 0.5f, 0.5f, -0.5f,
+                         0.0f, 0.0f, -0.5f,
+                         0.0f, 0.5f, -0.5f,
+                         0.5f, 0.0f, -0.5f,
+                         0.5f, -0.5f, -0.5f,
+                         0.0f, -0.5f, -0.5f
     };
     unsigned int vao;
     glGenVertexArrays(1, &vao);
@@ -91,7 +94,7 @@ int main()
     unsigned int vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
-    glBufferData(GL_ARRAY_BUFFER, 2   * 40 * 40 * 6 * sizeof(float), &terrain[0] , GL_STATIC_DRAW);
+    glBufferData(GL_ARRAY_BUFFER, 2 * 40 * 40 * 3  * sizeof(float), &terrain[0] , GL_STATIC_DRAW);
 
     glVertexAttribPointer(0, 2, GL_FLOAT, GL_FALSE, 2 * sizeof(float), (void*)0);
     glEnableVertexAttribArray(0);
@@ -110,63 +113,29 @@ int main()
         R"GLSL(
         #version 410 core
 
-        layout (location = 0) in vec3 Position_VS_in;
-        //layout (location = 1) in vec2 TexCoord_VS_in;
-        //layout (location = 2) in vec3 Normal_VS_in;
-
-        //uniform mat4 gWorld;
+        layout (location = 0) in vec2 Position_VS_in;
 
         out vec3 WorldPos_CS_in;
-        //out vec2 TexCoord_CS_in;
-        //out vec3 Normal_CS_in;
 
         void main()
         {
-            WorldPos_CS_in = ( vec4(Position_VS_in, 1.0)).xyz;
-
-            //Normal_CS_in = (gWorld * vec4(Normal_VS_in, 0.0)).xyz;
+            WorldPos_CS_in = ( vec4(Position_VS_in, 0.0, 1.0)).xyz;
         }
         )GLSL";
 
     const char* tesscontrolShaderSource =
         R"glsl(
         #version 410 core
-
-        // define the number of CPs in the output patch
         layout (vertices = 3) out;
 
-        vec3 gEyeWorldPos = vec3(1.0f, 0.4f, 0.7f);
+        uniform vec3 gEyeWorldPos;
 
-        // attributes of the input CPs
         in vec3 WorldPos_CS_in[];
-        //in vec2 TexCoord_CS_in[];
-        //in vec3 Normal_CS_in[];
 
-        // attributes of the output CPs
         out vec3 WorldPos_ES_in[];
-        //out vec2 TexCoord_ES_in[];
-        //out vec3 Normal_ES_in[];
-        float GetTessLevel(float Distance0, float Distance1);
-        void main()
-        {
-            // Set the control points of the output patch
-            //TexCoord_ES_in[gl_InvocationID] = TexCoord_CS_in[gl_InvocationID];
-            //Normal_ES_in[gl_InvocationID] = Normal_CS_in[gl_InvocationID];
-            WorldPos_ES_in[gl_InvocationID] = WorldPos_CS_in[gl_InvocationID];
-        // Calculate the distance from the camera to the three control points
-           float EyeToVertexDistance0 = distance(gEyeWorldPos, WorldPos_ES_in[0]);
-           float EyeToVertexDistance1 = distance(gEyeWorldPos, WorldPos_ES_in[1]);
-           float EyeToVertexDistance2 = distance(gEyeWorldPos, WorldPos_ES_in[2]);
-
-           // Calculate the tessellation levels
-           gl_TessLevelOuter[0] = GetTessLevel(EyeToVertexDistance1, EyeToVertexDistance2);
-           gl_TessLevelOuter[1] = GetTessLevel(EyeToVertexDistance2, EyeToVertexDistance0);
-           gl_TessLevelOuter[2] = GetTessLevel(EyeToVertexDistance0, EyeToVertexDistance1);
-           gl_TessLevelInner[0] = gl_TessLevelOuter[2];
-       }
-
         float GetTessLevel(float Distance0, float Distance1)
         {
+
             float AvgDistance = (Distance0 + Distance1) / 2.0;
 
             if (AvgDistance <= 2.0) {
@@ -179,6 +148,23 @@ int main()
                 return 3.0;
             }
         }
+        void main()
+        {
+           vec3 geye;
+           geye.x =  gEyeWorldPos.x * 100;
+           geye.y = gEyeWorldPos.y * 100;
+           geye.z = gEyeWorldPos.z;
+           WorldPos_ES_in[gl_InvocationID] = WorldPos_CS_in[gl_InvocationID];
+
+           float EyeToVertexDistance0 = distance(gEyeWorldPos, WorldPos_ES_in[0]);
+           float EyeToVertexDistance1 = distance(gEyeWorldPos, WorldPos_ES_in[1]);
+           float EyeToVertexDistance2 = distance(gEyeWorldPos, WorldPos_ES_in[2]);
+
+           gl_TessLevelOuter[0] = GetTessLevel(EyeToVertexDistance1, EyeToVertexDistance2);
+           gl_TessLevelOuter[1] = GetTessLevel(EyeToVertexDistance2, EyeToVertexDistance0);
+           gl_TessLevelOuter[2] = GetTessLevel(EyeToVertexDistance0, EyeToVertexDistance1);
+           gl_TessLevelInner[0] = gl_TessLevelOuter[2];
+       }
         )glsl";
 
     const char* tessEvalShaderSource =
@@ -186,18 +172,13 @@ int main()
             #version 410 core
             layout(triangles, equal_spacing, ccw) in;
             mat4 gVP = mat4(1.0f);
-            //uniform sampler2D gDisplacementMap;
             float gDispFactor = 1.0f;
             uniform mat4 model;
             uniform mat4 view;
             uniform mat4 projection;
             in vec3 WorldPos_ES_in[];
-            //in vec2 TexCoord_ES_in[];
-            //in vec3 Normal_ES_in[];
 
             out vec3 WorldPos_FS_in;
-            //out vec2 TexCoord_FS_in;
-            //out vec3 Normal_FS_in;
             vec2 interpolate2D(vec2 v0, vec2 v1, vec2 v2)
             {
                 return vec2(gl_TessCoord.x) * v0 + vec2(gl_TessCoord.y) * v1 + vec2(gl_TessCoord.z) * v2;
@@ -209,14 +190,7 @@ int main()
             }
             void main()
             {
-                // Interpolate the attributes of the output vertex using the barycentric coordinates
-                //TexCoord_FS_in = interpolate2D(TexCoord_ES_in[0], TexCoord_ES_in[1], TexCoord_ES_in[2]);
-                //Normal_FS_in = interpolate3D(Normal_ES_in[0], Normal_ES_in[1], Normal_ES_in[2]);
-                //Normal_FS_in = normalize(Normal_FS_in);
                 WorldPos_FS_in = interpolate3D(WorldPos_ES_in[0], WorldPos_ES_in[1], WorldPos_ES_in[2]);
-                // Displace the vertex along the normal
-                //float Displacement = texture(gDisplacementMap, TexCoord_FS_in.xy).x;
-               // WorldPos_FS_in += Normal_FS_in * Displacement * gDispFactor;
                 gl_Position = projection * view * model  * vec4(WorldPos_FS_in, 1.0);
             }
 
@@ -321,20 +295,24 @@ int main()
         //glUniform1f(tessFactor, tfac);
         //tfac += 0.1f;
         //if (tfac > 3.0f) tfac = 0.2f;
-
+        //std::cout << (float)xpos << " " << ypos << "\n";
+        glm::vec3 pos = glm::vec3((float)xpos/100, (float)ypos/100, -0.5f);
         unsigned int cursorxpos = glGetUniformLocation(shaderProgram, "xpos");
-        glUniform1d(cursorxpos, xpos);
+        glUniform1f(cursorxpos, (float)xpos);
         unsigned int cursorypos = glGetUniformLocation(shaderProgram, "ypos");
-        glUniform1d(cursorypos, ypos);
+        glUniform1f(cursorypos, (float)ypos);
+        unsigned int gEyeWorld = glGetUniformLocation(shaderProgram, "gEyeWorldPos");
+        glUniform3fv(gEyeWorld, 1, glm::value_ptr(pos));
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         unsigned int view_loc = glGetUniformLocation(shaderProgram, "view");
         glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm::value_ptr(view));
 
         glm::mat4 model = glm::mat4(1.0f);
+        //glm::rotate(model, (float)glfwGetTime() * glm::radians(30.0f), glm::vec3(0.0f,0.0f, 1.0f));
         unsigned int postions_loc = glGetUniformLocation(shaderProgram, "model");
         glUniformMatrix4fv(postions_loc, 1, GL_FALSE, glm::value_ptr(model));
 
-        glDrawArrays(GL_PATCHES, 0, 2 * 4 * 100 * 100);
+        glDrawArrays(GL_PATCHES, 0, 2 * 4 * 20 * 100);
         glfwSwapBuffers(window);
         glfwPollEvents();
     }
