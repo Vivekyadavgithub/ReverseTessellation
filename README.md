@@ -1,9 +1,10 @@
 # ReverseTessellation
 
 Requirements to Build :<br>
-  Microsoft Visual Studio 2019<br>
-  Gpu that Supports Opengl 4.1 minimum<br>
-  
+  <ul>
+  <li>Microsoft Visual Studio 2019<\li><br>
+  <li>Gpu that Supports Opengl 4.1 minimum<\li><br>
+  <\ul>
 How to build:<br>
   Clone the repo and run the .sln file.<br>
   Visual studio shall open up switch to Debug x86(if not by default) instead of x64.<br>
