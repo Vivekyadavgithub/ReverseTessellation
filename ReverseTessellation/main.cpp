@@ -8,6 +8,9 @@
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
 
+// Adjust camera speed for easier navigation
+const float cameraSpeed = 0.008f;
+
 void processInput(GLFWwindow* window);
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 1.0f);
 glm::vec3 cameraFront = glm::vec3(0.0f, 0.0f, -1.0f);
@@ -60,7 +63,8 @@ int main()
     unsigned int vao;
     glGenVertexArrays(1, &vao);
     glBindVertexArray(vao);
-
+    
+    // Vertex Buffer
     unsigned int vbo;
     glGenBuffers(1, &vbo);
     glBindBuffer(GL_ARRAY_BUFFER, vbo);
@@ -71,11 +75,8 @@ int main()
 
     glBindBuffer(GL_ARRAY_BUFFER, 0);
     glBindVertexArray(vao);
-
-    GLint MaxPatchVertices = 0;
-    glGetIntegerv(GL_MAX_PATCH_VERTICES, &MaxPatchVertices);
-    printf("Max supported patch vertices %d\n", MaxPatchVertices);
-    glPatchParameteri(GL_PATCH_VERTICES, 3);
+    
+    //Shaders
     const char* vertexShaderSource =
         R"GLSL(
         #version 410 core
@@ -217,20 +218,24 @@ int main()
         glEnable(GL_DEPTH_TEST);
         glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
         glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-
+        
+        // Projection Matrix
         glm::mat4 projection = glm::mat4(1.0f);
         projection = glm::perspective(glm::radians(45.0f), (float)700 / (float)700, 0.1f, 100.0f);
         unsigned int projection_loc = glGetUniformLocation(shaderProgram, "projection");
         glUniformMatrix4fv(projection_loc, 1, GL_FALSE, glm::value_ptr(projection));
-
+        
+        // View Matrix
         glm::mat4 view = glm::lookAt(cameraPos, cameraPos + cameraFront, cameraUp);
         unsigned int view_loc = glGetUniformLocation(shaderProgram, "view");
         glUniformMatrix4fv(view_loc, 1, GL_FALSE, glm::value_ptr(view));
-
+        
+        // Model Matrix
         glm::mat4 model = glm::mat4(1.0f);
         unsigned int model_loc = glGetUniformLocation(shaderProgram, "model");
         glUniformMatrix4fv(model_loc, 1, GL_FALSE, glm::value_ptr(model));
-
+        
+        // Camera Coordinates
         unsigned int cameraCoords = glGetUniformLocation(shaderProgram, "camera");
         glUniform3fv(cameraCoords, 1, glm::value_ptr(cameraPos));
 
@@ -246,7 +251,6 @@ int main()
 
 void processInput(GLFWwindow* window)
 {
-    const float cameraSpeed = 0.01f;
     if (glfwGetKey(window, GLFW_KEY_W) == GLFW_PRESS)
         cameraPos += cameraSpeed * cameraFront;
     if (glfwGetKey(window, GLFW_KEY_S) == GLFW_PRESS)
