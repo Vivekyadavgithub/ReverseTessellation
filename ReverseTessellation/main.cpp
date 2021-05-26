@@ -9,7 +9,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 // Adjust camera speed for easier navigation
-const float cameraSpeed = 0.008f;
+const float cameraSpeed = 0.004f;
 
 void processInput(GLFWwindow* window);
 glm::vec3 cameraPos = glm::vec3(0.0f, 0.0f, 1.0f);
