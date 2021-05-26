@@ -1,6 +1,6 @@
 # ReverseTessellation
 
-Requirements to Build :
+Requirements to Build :\n
   Microsoft Visual Studio 2019
   Gpu that Supports Opengl 4.1 minimum
   
